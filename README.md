@@ -1,18 +1,20 @@
-# Proyecto análisis de venta en python
-
-# Limpieza y Análisis de Datos
+# Análisis de venta 2024 de una cadena retail en Chile: calidad de datos, concentración de ingresos y rentabilidad
 
 ## Descripción del proyecto
 
 Este proyecto corresponde a un proceso de **limpieza, transformación y análisis exploratorio de datos de ventas**, desarrollado utilizando **Python y Pandas** en Google Colab.
-
-El objetivo principal es transformar una base de datos de ventas con información incompleta, valores nulos y registros duplicados en un conjunto de datos limpio y estructurado, preparado para realizar análisis posteriores y obtener indicadores relevantes para la toma de decisiones.
-
-El proyecto forma parte del desarrollo de habilidades en **Python y análisis de datos**.
+    
+La empresa vende productos de Tecnología, Hogar, Belleza, Deportes y Oficina en 8 sucursales (Santiago Centro, Providencia, Las Condes, Viña del Mar, La Serena, Concepción, Temuco y Antofagasta), a través de cuatro canales: Tienda, Online, WhatsApp y Marketplace.
 
 ---
 
-## 🎯 Objetivos
+## Objetivo: responder tres preguntas de gestión:
+
+1. ¿Dónde se concentran los ingresos (categoría, producto, canal y mes)?
+2. ¿Las categorías que más venden son también las más rentables?
+3. ¿Qué tan confiable es la información registrada y cuánto pesan sus errores?
+
+El proyecto forma parte del desarrollo de habilidades en **Python y análisis de datos**.
 
 - Importar y explorar una base de datos de ventas.
 - Identificar problemas de calidad en los datos.
@@ -45,7 +47,7 @@ El proyecto utiliza una base de datos de ventas con **650 registros y 15 variabl
 | `Cliente_ID` | Identificador del cliente |
 | `Unidades` | Cantidad de unidades vendidas |
 | `Precio_Unitario` | Precio unitario del producto |
-| `Descuento` | Descuento aplicado a la venta |
+| `Descuento` | Descuento aplicado a la venta 5 = 5% |
 | `Costo_Unitario` | Costo unitario del producto |
 | `Metodo_Pago` | Método de pago utilizado |
 | `Estado_Entrega` | Estado de entrega del pedido |
@@ -63,7 +65,7 @@ El proyecto utiliza una base de datos de ventas con **650 registros y 15 variabl
 
 - import pandas as pd
 - import numpy as np
-- import Matplotlib as plt
+- import matplotlib.pyplot as plt
 
 ---
 
@@ -101,36 +103,10 @@ df = pd.read_excel("Datos_Proyecto_Intermedio.xlsx")
 
 Una vez cargado el dataset, se realizó una primera revisión para conocer su estructura.
 
-~~~python
-df.head()
-~~~
-
-También se revisaron las dimensiones del dataset:
-
-~~~python
-df.shape
-~~~
-
 Resultado inicial:
 
 - 650 filas
 - 15 columnas
-
----
-
-# Revisión de columnas
-
-Se revisaron los nombres de las variables disponibles.
-
-~~~python
-df.columns
-~~~
-
-Las columnas encontradas fueron:
-
-`ID_Venta`, `Fecha`, `Sucursal`, `Categoría`, `Producto`, `Canal`, `Vendedor`, `Cliente_ID`, `Unidades`, `Precio_Unitario`, `Descuento`, `Costo_Unitario`, `Metodo_Pago`, `Estado_Entrega`, `Total_Venta`
-
----
 
 # Información general del dataset
 
@@ -182,24 +158,44 @@ Se identificaron:
 
 Estos registros fueron considerados durante el proceso de limpieza para evitar que afectaran los resultados del análisis.
 
+Antes de limpiar, se identificaron y clasificaron todos los errores sobre el archivo original:
+
+| Tipo de error | Detalle | Filas |
+|---|---|---:|
+| Valores vacíos | Fecha (1), Categoría (1), Producto (2), Canal (1), Vendedor (3), Precio_Unitario (3), Metodo_Pago (1) | 12 |
+| Formato incorrecto | Fechas imposibles o en texto (`31/02/2024`, `2024-13-05`, `sin fecha`) | 5 |
+| Formato incorrecto | Precios en texto (`$58.700`, `precio pendiente`) | 3 |
+| Formato incorrecto | Descuentos en texto (`10%`) | 3 |
+| Error de escritura | Categoría (`BELLEZA`, `Deporte`, `Tecno`, `Oficna`) | 7 |
+| Error de escritura | Producto (`MONITOR`, `mancuernas`, `balón`...) | 9 |
+| Error de escritura | Canal (`TIENDA`, `On line`, `Market place`...) | 10 |
+| Fuera de rango | Precio = 1 (7) y precio = 9.999.999 (1) | 8 |
+| Fuera de rango | Descuentos de 80%, 55% y -5% | 5 |
+| Fuera de rango | Unidades negativas (6) o en cero (2) | 8 |
+| Inconsistencia | `Total_Venta` distinto de Precio × Unidades × (1 − Descuento / 100) | 118 |
+| Duplicados | Filas duplicadas exactas | 4 |
+
+<img width="855" height="457" alt="Resumen_Errores" src="https://github.com/user-attachments/assets/bd08706a-bb52-42ed-a012-3d1823edf2fa" />
+
 ---
 
 # Limpieza de datos
 
-Luego de identificar los problemas de calidad, se realizó el proceso de limpieza.
+Cada corrección se justifica con evidencia de los propios datos y se aplica por `ID_Venta`, que no cambia si el DataFrame se reordena o filtra.
 
-Entre las principales tareas realizadas estuvieron:
-
-- Revisión de valores faltantes.
-- Eliminación de registros duplicados.
-- Revisión de tipos de datos.
-- Validación de variables numéricas.
-- Validación de variables categóricas.
-- Revisión de consistencia de los cálculos.
-
-Después del proceso de limpieza, el dataset quedó con:
-
-**646 registros y 15 columnas.**
+| Problema | Decisión | Impacto |
+|---|---|---|
+| Registros duplicados | Se eliminan solo los duplicados exactos | 650 → 646 registros |
+| Precios en texto | Se quita `$` y el separador de miles, y se convierte a número | 2 ventas |
+| Precios vacíos o "precio pendiente" | Se recupera el precio desde `Total_Venta`, `Unidades` y `Descuento`. En la venta devuelta (total $0) se usa la mediana del mismo producto | 4 ventas |
+| Precio de 9.999.999 (Notebook) | Se reemplaza por el precio que explica su total y descuento ($598.200) | 1 venta |
+| Precio = 1 | Se reemplaza por el precio coherente con el total o por la mediana del producto | 7 ventas |
+| Descuentos `10%`, 80, 55 y -5 | El texto se convierte a número; los valores fuera de rango se reemplazan por el descuento implícito en `Total_Venta` | 8 ventas |
+| Fechas vacías o inválidas | Se dejan como `NaT` y solo se excluyen del análisis mensual | 6 registros (0,93% del dataset, $2.457.950 en ventas) |
+| Errores de escritura | Se unifican las variantes de Categoría, Canal y Producto | 26 registros |
+| Categoría vacía (Botella deportiva) | Se completa con *Deportes*, la categoría de ese producto en todos los demás registros | 1 venta |
+| Otros vacíos categóricos | Se rotulan como "Sin producto", "Sin canal", "Sin vendedor" y "Sin método de pago" | 7 registros |
+| Unidades negativas o en cero | Se mantienen tal como vienen en el archivo y se documentan | 8 ventas |
 
 ---
 
@@ -225,7 +221,7 @@ Esto permite realizar análisis por:
 Se revisaron las principales variables numéricas del dataset.
 
 ~~~python
-df.describe()
+df["Precio_Unitario"].describe()
 ~~~
 
 Esta función permite analizar:
@@ -249,95 +245,20 @@ Las variables revisadas incluyen:
 
 # Validación de Total_Venta
 
-Se verificó que el valor de `Total_Venta` tuviera relación con las variables utilizadas para calcularlo.
+Una vez limpios los precios y descuentos, `Total_Venta` se recalcula para **todas las filas**. El descuento está en porcentaje entero, por eso se divide por 100:
 
-La fórmula utilizada fue:
-
-`Total_Venta = Precio_Unitario × Unidades × (1 - Descuento)`
-
-La lógica utilizada en Python fue:
+`Total_Venta = Precio_Unitario × Unidades × (1 − Descuento / 100)`
 
 ~~~python
-df["Total_Venta_Calculada"] = (
+df["Total_Venta"] = (
     df["Precio_Unitario"]
     * df["Unidades"]
-    * (1 - df["Descuento"])
-)
+    * (1 - df["Descuento"] / 100)
+).round(0).astype(int)
 ~~~
 
-Posteriormente se compararon los valores calculados con los valores originales para validar la consistencia.
+Esto corrige **109 filas** que no cumplían la fórmula, incluidas 12 ventas canceladas o devueltas con montos sin sentido (por ejemplo, $56.615 por 1 unidad de $8.000). Después del recálculo, la fórmula se cumple en las **646 filas**.
 
----
-
-# Análisis de variables categóricas
-
-Se revisaron las categorías principales del dataset.
-
-Por ejemplo:
-
-~~~python
-df["Categoría"].value_counts()
-~~~
-
-También se analizaron otras variables categóricas como:
-
-~~~python
-df["Sucursal"].value_counts()
-~~~
-
-~~~python
-df["Canal"].value_counts()
-~~~
-
-~~~python
-df["Metodo_Pago"].value_counts()
-~~~
-
-~~~python
-df["Estado_Entrega"].value_counts()
-~~~
-
-Esto permitió conocer la distribución de las ventas según diferentes dimensiones.
-
----
-
-# Análisis de ventas
-
-Se calculó el total de ventas:
-
-~~~python
-df["Total_Venta"].sum()
-~~~
-
-También se obtuvo el promedio:
-
-~~~python
-df["Total_Venta"].mean()
-~~~
-
-Y el valor máximo:
-
-~~~python
-df["Total_Venta"].max()
-~~~
-
-Estos indicadores permiten obtener una primera visión del comportamiento comercial.
-
----
-
-# Análisis de unidades vendidas
-
-Se calculó la cantidad total de unidades vendidas:
-
-~~~python
-df["Unidades"].sum()
-~~~
-
-También se analizó el promedio de unidades por venta:
-
-~~~python
-df["Unidades"].mean()
-~~~
 
 ---
 
@@ -345,238 +266,96 @@ df["Unidades"].mean()
 
 Se agrupó la información para conocer el desempeño de cada categoría.
 
-~~~python
-ventas_categoria = (
-    df.groupby("Categoría")["Total_Venta"]
-    .sum()
-    .sort_values(ascending=False)
-)
+Este análisis permite identificar qué categorías concentran una mayor proporción de las ventas, resultando ser Tecnología con 60%.
 
-ventas_categoria
-~~~
-
-Este análisis permite identificar qué categorías concentran una mayor proporción de las ventas.
-
----
-
-# Análisis de ventas por sucursal
-
-Se analizaron las ventas por sucursal.
-
-~~~python
-ventas_sucursal = (
-    df.groupby("Sucursal")["Total_Venta"]
-    .sum()
-    .sort_values(ascending=False)
-)
-
-ventas_sucursal
-~~~
-
-Esto permite comparar el desempeño comercial de las distintas sucursales.
+<img width="630" height="470" alt="Ventas_Categoría" src="https://github.com/user-attachments/assets/326a851d-3811-46d1-a516-c41e470ef435" />
 
 ---
 
 # Análisis de ventas por canal
 
-Se analizaron las ventas según el canal utilizado.
+Se analizaron las ventas según el canal.
 
-~~~python
-ventas_canal = (
-    df.groupby("Canal")["Total_Venta"]
-    .sum()
-    .sort_values(ascending=False)
-)
+<img width="630" height="470" alt="Ventas_Canal" src="https://github.com/user-attachments/assets/07ad872b-5012-42c1-a0b9-44a38e90f8ea" />
 
-ventas_canal
-~~~
-
-Este análisis permite determinar qué canales generan mayor volumen de ventas.
+Este análisis permite determinar qué canales generan mayor volumen de ventas, tal como se muestra en la imagen los canales son muy competitivos, no existe uno significativamente predominante.
 
 ---
 
-#  Análisis por vendedor
-
-Se analizaron las ventas generadas por cada vendedor.
-
-~~~python
-ventas_vendedor = (
-    df.groupby("Vendedor")["Total_Venta"]
-    .sum()
-    .sort_values(ascending=False)
-)
-
-ventas_vendedor
-~~~
-
-Esto permite identificar diferencias de desempeño entre vendedores.
-
----
-
-# Análisis temporal
-
-Se crearon variables relacionadas con el periodo de venta.
-
-~~~python
-df["Año"] = df["Fecha"].dt.year
-df["Mes"] = df["Fecha"].dt.month
-~~~
-
-Posteriormente se pueden analizar las ventas por periodo:
+# Análisis de venta por mes:
 
 ~~~python
 ventas_mes = (
-    df.groupby(["Año", "Mes"])["Total_Venta"]
+    df_graficos.dropna(subset=["Fecha"])
+    .groupby(df_graficos.dropna(subset=["Fecha"])["Fecha"].dt.to_period("M"))["Total_Venta"]
     .sum()
 )
 
-ventas_mes
 ~~~
+<img width="989" height="490" alt="Ventas_Mes" src="https://github.com/user-attachments/assets/1e55fe3e-c854-4452-82d4-014a168da54d" />
 
-Esto permite identificar tendencias y variaciones en el comportamiento de las ventas.
+
+Esto permite identificar tendencias y variaciones en el comportamiento de las ventas, predominando el mes de mayo como mejor mes impulsado por la venta de Notebook y Monitor.
 
 ---
 
 #  Análisis de rentabilidad
 
-A partir del precio, costo y unidades se puede calcular el margen bruto.
+Base: ventas Entregadas y Pendientes (533 registros).
 
-Primero se calcula el costo total:
+| Categoría | Ventas | Margen | Margen % |
+|---|---:|---:|---:|
+| Tecnología | $52.459.695 | $13.120.595 | 25,0% |
+| Hogar | $15.455.590 | $5.486.390 | 35,5% |
+| Belleza | $11.358.915 | $3.895.615 | 34,3% |
+| Deportes | $6.035.090 | $2.586.190 | 42,9% |
+| Oficina | $1.836.580 | $838.980 | **45,7%** |
 
-~~~python
-df["Costo_Total"] = df["Costo_Unitario"] * df["Unidades"]
-~~~
+**Indicadores generales**
 
-Luego se calcula el margen:
+| Indicador | Valor |
+|---|---:|
+| Ventas totales | $87.145.870 |
+| Costo total | $61.218.100 |
+| Margen total | $25.927.770 |
+| Margen % | 29,8% |
+| Ticket promedio | $163.501 |
 
-~~~python
-df["Margen"] = df["Total_Venta"] - df["Costo_Total"]
-~~~
+<img width="635" height="475" alt="Margen_Categoría" src="https://github.com/user-attachments/assets/f1f40971-fc76-433e-ac4a-ec1278ec054b" />
 
-Y finalmente el margen porcentual:
-
-~~~python
-df["Margen_%"] = (
-    df["Margen"] / df["Total_Venta"]
-) * 100
-~~~
-
-Este análisis permite complementar la visión de ventas con una perspectiva de rentabilidad.
-
----
-
-# Indicadores principales
-
-Los principales indicadores considerados en el análisis fueron:
-
-### Ventas totales
-
-~~~python
-ventas_totales = df["Total_Venta"].sum()
-~~~
-
-### Unidades vendidas
-
-~~~python
-unidades_totales = df["Unidades"].sum()
-~~~
-
-### Ticket promedio
-
-~~~python
-ticket_promedio = df["Total_Venta"].mean()
-~~~
-
-### Costo total
-
-~~~python
-costo_total = df["Costo_Total"].sum()
-~~~
-
-### Margen total
-
-~~~python
-margen_total = df["Margen"].sum()
-~~~
-
-### Margen porcentual
-
-~~~python
-margen_porcentaje = (
-    margen_total / ventas_totales
-) * 100
-~~~
+Este análisis permite complementar la visión de ventas con una perspectiva de rentabilidad, lo que reflejó que la mayor venta no necesariamente está relacionado a una mayor rentabilidad.
 
 ---
 
-# Visualización de datos
+### Trazabilidad
 
-Para complementar el análisis se pueden utilizar gráficos con Matplotlib.
-
-Ejemplo de ventas por categoría:
+Las ventas que venían con algún dato vacío se identifican automáticamente desde una copia del archivo original y se marcan con la columna `Dato_Originalmente_Vacio`:
 
 ~~~python
-ventas_categoria.plot(kind="bar")
+df_original = df.copy()   # justo después de cargar el archivo
 
-plt.title("Ventas por Categoría")
-plt.xlabel("Categoría")
-plt.ylabel("Ventas")
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+ids_originalmente_vacios = df_original.loc[df_original.isnull().any(axis=1), "ID_Venta"].unique()
+df["Dato_Originalmente_Vacio"] = df["ID_Venta"].isin(ids_originalmente_vacios)
 ~~~
 
-<img width="630" height="470" alt="Ventas_Categoría" src="https://github.com/user-attachments/assets/29a49028-8ff0-4601-8a8e-5f07cbc359f1" />
-
-
-Ejemplo de evolución temporal:
+Estos 12 registros **se mantienen en el dataset**, pero se excluyen de los gráficos para no distorsionar el análisis. Las ventas **Canceladas y Devueltas** (101) también se excluyen de los gráficos, porque no son ventas reales.
 
 ~~~python
-ventas_mes.plot(kind="line")
-
-plt.title("Evolución de las Ventas")
-plt.xlabel("Periodo")
-plt.ylabel("Ventas")
-plt.tight_layout()
-plt.show()
+df_graficos = df[
+    ~df["Dato_Originalmente_Vacio"]
+    & ~df["Estado_Entrega"].isin(["Cancelado", "Devuelto"])
+].copy()
 ~~~
 
-<img width="989" height="490" alt="Ventas_Mes" src="https://github.com/user-attachments/assets/4e69294e-3615-46ff-acae-438186b202ef" />
+**Resultado:** el dataset final tiene **646 registros**, y los gráficos usan **533 registros** (Entregados y Pendientes).
+
+---
 
 Otros gráficos de utilidad 
 
 Top 10 productos 
 
 <img width="989" height="590" alt="Top_10_productos" src="https://github.com/user-attachments/assets/8aeb1a24-c661-4907-b0cd-bf49290f20da" />
-
-Ventas por canal
-
-<img width="630" height="470" alt="Ventas_Canal" src="https://github.com/user-attachments/assets/e74194cb-ec76-4cef-af3e-42e57c9ebdbe" />
-
-
----
-
-# Validación final
-
-Antes de finalizar el análisis se realizó una revisión general del dataset.
-
-~~~python
-df.shape
-~~~
-
-~~~python
-df.isnull().sum()
-~~~
-
-~~~python
-df.duplicated().sum()
-~~~
-
-~~~python
-df.info()
-~~~
-
-Estas comprobaciones permiten confirmar que el dataset utilizado para el análisis tenga una estructura consistente.
 
 ---
 
@@ -603,38 +382,25 @@ Las principales habilidades desarrolladas fueron:
 
 ---
 
-# Enfoque de negocio
+# Principales hallazgos
 
-Además del componente técnico, el proyecto busca aplicar los datos a preguntas relevantes para la gestión:
+1. **Alta dependencia de una categoría y de un producto.** Tecnología representa el **60,2%** de las ventas y el Notebook, por sí solo, el **37,0%**. Además, el Notebook tiene el **menor margen** de los productos más vendidos (**19,4%**): genera el 37% de las ventas, pero solo cerca del 24% del margen total. El resultado del año depende de muy pocos productos y, además, de los menos rentables.
 
-- ¿Qué categorías generan más ventas?
-- ¿Qué sucursales presentan mejor desempeño?
-- ¿Qué canales concentran mayores ingresos?
-- ¿Qué vendedores generan mayor facturación?
-- ¿Cómo evolucionan las ventas en el tiempo?
-- ¿Cuál es el ticket promedio?
-- ¿Cuál es el margen generado?
-- ¿Qué categorías presentan mejor rentabilidad?
+2. **Liderar en ventas no significa liderar en margen.** Tecnología es la categoría con mayor venta y mayor margen en pesos, pero tiene el **menor margen porcentual (25,0%)**. Oficina (**45,7%**) y Deportes (**42,9%**) son las más rentables por cada peso vendido, aunque son las que menos venden.
 
-Este enfoque permite pasar de una simple limpieza de datos a un análisis orientado a la toma de decisiones.
+3. **Estacionalidad marcada.** **Mayo**, el mes más alto, vendió **3 veces más que noviembre**, el más bajo. La diferencia no se explica por la cantidad de ventas (50 contra 42), sino por un ticket promedio mucho mayor (**$242.000 contra $97.000**), impulsado por Notebook y Monitor.
 
----
+4. **Canales con participación similar.** WhatsApp lidera con el **27,2%** de las ventas, seguido muy de cerca por Tienda (**26,2%**), Online (**25,2%**) y Marketplace (**21,4%**). Ningún canal es prescindible y WhatsApp compite de igual a igual con la tienda física. Marketplace es el canal que menos vende, pero el de mayor margen porcentual (**32,6%**).
 
 #  Recomendaciones
 
-Como continuación del proyecto se podrían incorporar:
-
-- Dashboard en Power BI.
-- Análisis de tendencias.
-- Automatización del proceso de limpieza.
-- Exportación automática de resultados.
-- Integración con SQL.
-- Desarrollo de un modelo predictivo de ventas.
+1. **Diversificar la cartera.** Reducir la dependencia de Tecnología y del Notebook, impulsando las categorías con mayor margen porcentual (Oficina y Deportes). Mientras tanto, asegurar el stock y las condiciones de compra del producto líder, y revisar su precio o su costo, ya que es el producto más vendido y el de menor margen.
+2. **Potenciar los canales digitales y la tienda.** Realizar campañas online y promociones de retiro en tienda que permitan aumentar las ventas al momento de retirar un producto.
+3. **Monitorear la estacionalidad.** Mayo vendió 3 veces más que noviembre, impulsado por Notebook y Monitor. Antes de planificar inventario y campañas, conviene confirmar si el peak de mayo responde a una campaña especial, ya que no se repite en el resto de los meses.
+4. **Mejorar el registro de datos en origen.** El 18% de las filas tenía un `Total_Venta` que no correspondía a su precio, unidades y descuento. Validar estos campos al momento de la venta evitaría reportes de ingresos incorrectos.
 
 ---
 
 # Conclusión
 
-Este proyecto representa la aplicación práctica de Python y Pandas para transformar datos de ventas en información útil para el análisis y la gestión.
-
-El objetivo no fue únicamente limpiar los datos, sino desarrollar un flujo de trabajo reproducible que permita explorar información, validar su calidad, construir indicadores y obtener insights orientados al negocio.
+La empresa mantiene un margen saludable, pero debe cuidar la dependencia de un solo producto ya que un quiebre de Stock podría perjudicarla considerablemente, así como potenciar los productos y categorías que generen mayor margen para obtener mejores ganancias y por último mantener la competitividad de los canales con campañas y promociones. 
